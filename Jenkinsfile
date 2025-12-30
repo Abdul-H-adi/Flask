@@ -19,24 +19,24 @@ pipeline {
             }
         }
 
-stage('Install Dependencies') {
+stage(stage('Install Dependencies') {
   steps {
     bat """
-      where py
-      where python
+      py -3.11 --version
 
-      rem Create venv using Python 3.11 explicitly
+      rem Create venv using Python 3.11
       py -3.11 -m venv .venv
 
-      rem Bootstrap pip inside venv (safe even if pip is missing)
+      rem Ensure pip exists inside venv
       .venv\\Scripts\\python.exe -m ensurepip --upgrade
 
-      rem Upgrade pip and install requirements using venv python
+      rem Upgrade pip + install requirements
       .venv\\Scripts\\python.exe -m pip install --upgrade pip
       .venv\\Scripts\\python.exe -m pip install -r requirements.txt
     """
   }
 }
+
 
 stage('Run Unit Tests') {
   steps {
