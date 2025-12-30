@@ -2,13 +2,12 @@ pipeline {
     agent any
 
     triggers {
-        // Works when GitHub webhook is configured
         githubPush()
     }
 
     environment {
         VENV = ".venv"
-        DEPLOY_DIR = "/tmp/flask_deploy_target"
+        DEPLOY_DIR = "C:\\tmp\\flask_deploy_target"
         APP_ZIP = "flask_app_build.zip"
     }
 
@@ -16,55 +15,51 @@ pipeline {
 
         stage('Clone Repository') {
             steps {
-                // Jenkins will checkout the repo configured in the job
                 checkout scm
             }
         }
 
         stage('Install Dependencies') {
             steps {
-                sh '''
-                    python3 --version
-                    python3 -m venv "${VENV}"
-                    . "${VENV}/bin/activate"
-                    pip install --upgrade pip
+                bat """
+                    python --version
+                    python -m venv %VENV%
+                    call %VENV%\\Scripts\\activate
+                    python -m pip install --upgrade pip
                     pip install -r requirements.txt
-                '''
+                """
             }
         }
 
         stage('Run Unit Tests') {
             steps {
-                sh '''
-                    . "${VENV}/bin/activate"
+                bat """
+                    call %VENV%\\Scripts\\activate
                     pytest -q
-                '''
+                """
             }
         }
 
         stage('Build App') {
             steps {
-                sh '''
-                    rm -f "${APP_ZIP}"
-                    zip -r "${APP_ZIP}" app.py requirements.txt tests README.md
-                '''
+                bat """
+                    powershell -NoProfile -Command "if (Test-Path '%APP_ZIP%') { Remove-Item '%APP_ZIP%' -Force }"
+                    powershell -NoProfile -Command "Compress-Archive -Path app.py,requirements.txt,tests,README.md -DestinationPath '%APP_ZIP%' -Force"
+                """
             }
         }
 
         stage('Deploy App (Simulated)') {
             steps {
-                sh '''
-                    sudo mkdir -p "${DEPLOY_DIR}" || mkdir -p "${DEPLOY_DIR}"
-                    sudo rm -rf "${DEPLOY_DIR}/app" 2>/dev/null || true
-                    sudo mkdir -p "${DEPLOY_DIR}/app" || true
-
-                    # Copy build artifact + app files (simulate deployment)
-                    sudo cp -f "${APP_ZIP}" "${DEPLOY_DIR}/" 2>/dev/null || cp -f "${APP_ZIP}" "${DEPLOY_DIR}/"
-                    sudo cp -f app.py requirements.txt "${DEPLOY_DIR}/app/" 2>/dev/null || cp -f app.py requirements.txt "${DEPLOY_DIR}/app/"
-
-                    echo "Deployed to: ${DEPLOY_DIR}"
-                    ls -la "${DEPLOY_DIR}" || true
-                '''
+                bat """
+                    if not exist "%DEPLOY_DIR%" mkdir "%DEPLOY_DIR%"
+                    if not exist "%DEPLOY_DIR%\\app" mkdir "%DEPLOY_DIR%\\app"
+                    copy /Y "%APP_ZIP%" "%DEPLOY_DIR%\\"
+                    copy /Y "app.py" "%DEPLOY_DIR%\\app\\"
+                    copy /Y "requirements.txt" "%DEPLOY_DIR%\\app\\"
+                    echo Deployed to: %DEPLOY_DIR%
+                    dir "%DEPLOY_DIR%"
+                """
             }
         }
     }
